@@ -7,19 +7,167 @@ output:
 
 
 ## Loading and preprocessing the data
+```{r  echo=TRUE , message=FALSE}
+library(data.table)
+library(ggplot2)
+library(lattice)
+library(dplyr)
+```
 
+```{r echo=TRUE}
+# Load the CSV RAW Data File
+#setwd("D:\\RData\\Course5\\data")
+df <- read.csv("activity.csv")
+dt <- data.table(df)
+dt$date<- as.Date(dt$date,"%Y-%m-%d")
 
+```
 
 ## What is mean total number of steps taken per day?
 
+1. Calculate the total number of steps taken per day
 
+```{r echo=TRUE}
+
+steps_per_day <- dt[complete.cases(dt),] %>% 
+  group_by(date) %>% 
+  summarize("Total_Steps"=sum(steps))
+
+```
+2. Make a histogram of the total number of steps taken each day
+```{r echo=TRUE}
+hist(steps_per_day$Total_Steps , xlab = "Step" , ylab = "Frequency" , col="blue" , main="Total           Number of Steps taken Per day" , breaks=10 , xlim = c(0,22000),ylim = c(0,18) , labels=TRUE)
+rug(steps_per_day$Total_Steps )
+```
+
+3. Calculate and report the mean and median of the total number of steps taken per day
+  
+```{r echo=TRUE}
+        ## Calculate but save for use later
+        mean_median <- 
+                dt[complete.cases(dt),] %>% 
+                        group_by(date) %>% 
+                        summarize("Mean"=mean(steps),"Median"=median(steps))
+        str(mean_median)
+```
 
 ## What is the average daily activity pattern?
+1. Make a time series plot (i.e. \color{red}{\verb|type = "l"|}type="l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
 
+```{r echo=FALSE}
+# Average daily Steps for each 5 minute interval
+daily_activity <- dt[complete.cases(dt) , ] %>% group_by(interval) %>% summarize("Mean"= mean(steps))
+
+plot( x=daily_activity$interval , y=daily_activity$Mean , type="l" , xlab = "Interval" , ylab="Mean of Total Steps" , main="Average Daily Activity" )
+
+```
+
+2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r echo=TRUE}
+        x <- daily_activity[daily_activity$Mean==max(daily_activity$Mean),1]
+        cat("Interval with Maximum mean of all days =",as.character(x))
+```
 
 
 ## Imputing missing values
+1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with \color{red}{\verb|NA|}NAs)
 
+```{r echo=TRUE}
+        x <- sum(!complete.cases(dt))
+        cat("Number of rows with missing values =",as.character(x))
+``` 
 
+2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+```{r echo=TRUE}
+print ("Fill the Missing Values with the mean of the interval of the day")
+```
+
+3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+```{r echo=TRUE}
+        
+        daily_activity <- as.data.frame(daily_activity)
+        
+
+        result <- dt
+
+        ## Finding and Replacing Missing VALUES  - with Mean Values of the intervals
+        for (i in 1:nrow(result)) {
+                if (is.na(result$steps[i])) {
+                        ## Lookup the mean (in daily_activity) for the interval of this row
+                        val <- daily_activity[daily_activity$interval==result$interval[i],"Mean"]
+                        result$steps[i]<- as.integer(round(val))
+                }
+        }
+``` 
+
+4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day
+
+```{r echo=TRUE}
+        mean_median_imp <- 
+                result %>% 
+                group_by(date) %>% 
+                summarize("Mean"=mean(steps),"Median"=median(steps))
+        mean_median_imp
+``` 
+
+Analyze the difference  after Imputation of missing values
+```{r echo=TRUE}
+        summary(mean_median,2:3)
+        summary(mean_median_imp,2:3)
+``` 
+Plot side by side plots before aqnd after imputation
+```{r echo=TRUE}
+        
+        plot.new()
+        par(mfrow=c(1,2) )
+        
+        step_summary <- dt[complete.cases(dt),] %>% 
+                group_by(date) %>% 
+                summarize("Total_Steps"=sum(steps))
+        
+        hist(step_summary$Total_Steps,col="blue",
+             main="Avg. Daily Steps Before Imputation",
+             xlab="Total Steps"
+             )
+        
+        step_summary <-result %>%
+                group_by(date) %>% 
+                summarize("Total_Steps"=sum(steps))
+        
+        hist(step_summary$Total_Steps,col="green",
+             main="Avg. Daily Steps After Imputation",
+             xlab="Total Steps"
+             )
+``` 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+1. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+```{r echo=TRUE}
+        
+        DayOfWeek <- data.frame(
+                name=c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"),
+                part=c("weekday","weekday","weekday","weekday","weekday","weekend","weekend"))
+       
+        # Parse the Date to Names of the Week days and assign the FACTOR value from the Data Frame         of DaysOfWeek
+        result$week_factor <- as.factor(weekdays(result$date))
+        result$week_factor <- DayOfWeek[result$week_factor,2]
+```
+
+2. Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). 
+
+```{r echo=TRUE}
+        ## Calculate and store the means by group
+        plot <- result %>% 
+                group_by(week_factor,interval) %>% 
+                summarize("Mean"=mean(steps))
+        
+        
+        xyplot(plot$Mean ~ plot$interval | plot$week_factor, 
+               data=plot, type="l", layout=c(1:2),
+               ylab="Mean Number of Steps",
+               xlab="Interval")
+```
