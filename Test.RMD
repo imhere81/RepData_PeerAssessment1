@@ -1,0 +1,28 @@
+---
+title: "Assignment 1"
+author: "MSK"
+date: "February 4, 2019"
+output: html_document
+---
+
+## Initialize Libraries
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(data.table)
+library(ggplot2)
+library(dplyr)
+
+```
+
+## Loading and preprocessing the data
+```{r echo=TRUE}
+df <- read.csv("activity.csv")
+dt <- data.table(df)
+
+dt$date<- as.Date(dt$date,"%Y-%m-%d")
+
+
+
+```
